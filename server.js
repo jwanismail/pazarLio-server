@@ -7,23 +7,20 @@ const Ilan = require('./models/Ilan'); // İlan modelini import et
 
 const app = express();
 
-// 🔒 CORS Ayarı (hem localhost hem de Vercel domain'ine izin veriyoruz)
+// CORS ayarları
 app.use(cors({
-  origin: ["http://localhost:5173", "https://pazar-lio-7ec8.vercel.app"],
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true
+  origin: ['https://pazarlio.vercel.app', 'http://localhost:5173'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // MongoDB bağlantısı
-mongoose.connect(process.env.MONGO_URL, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
-.then(() => console.log('MongoDB bağlantısı başarılı'))
-.catch(err => console.error('MongoDB bağlantı hatası:', err));
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log('MongoDB bağlantısı başarılı'))
+  .catch(err => console.error('MongoDB bağlantı hatası:', err));
 
 // Test endpoint'i
 app.get('/test', (req, res) => {
@@ -301,9 +298,9 @@ app.get('/api/ilanlar/kullanici/:kullaniciAdi', async (req, res) => {
 })
 
 // Port ayarı
-const PORT = 5001
+const PORT = process.env.PORT || 5001
 
 // Sunucuyu başlat
 app.listen(PORT, () => {
-  console.log(`Sunucu ${PORT} portunda çalışıyor`)
+  console.log(`Server ${PORT} portunda çalışıyor`)
 })
