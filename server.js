@@ -9,18 +9,30 @@ const app = express();
 
 // CORS ayarları
 app.use(cors({
-  origin: ['https://pazarlio.vercel.app', 'http://localhost:5173'],
+  origin: ['http://localhost:5173', 'https://pazarlio.vercel.app'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // MongoDB bağlantısı
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('MongoDB bağlantısı başarılı'))
-  .catch(err => console.error('MongoDB bağlantı hatası:', err));
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+})
+.then(() => {
+  console.log('MongoDB bağlantısı başarılı')
+  console.log('Bağlantı URL:', process.env.MONGODB_URI.replace(/\/\/[^:]+:[^@]+@/, '//****:****@'))
+})
+.catch(err => {
+  console.error('MongoDB bağlantı hatası:', err)
+  console.error('Bağlantı URL:', process.env.MONGODB_URI.replace(/\/\/[^:]+:[^@]+@/, '//****:****@'))
+})
 
 // Test endpoint'i
 app.get('/test', (req, res) => {
@@ -298,9 +310,9 @@ app.get('/api/ilanlar/kullanici/:kullaniciAdi', async (req, res) => {
 })
 
 // Port ayarı
-const PORT = process.env.PORT || 5001
+const PORT = process.env.PORT || 10000
 
 // Sunucuyu başlat
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server ${PORT} portunda çalışıyor`)
 })
