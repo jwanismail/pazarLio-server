@@ -19,15 +19,26 @@ const ilanSchema = new mongoose.Schema({
   kategori: {
     type: String,
     required: [true, 'Kategori alanı zorunludur'],
-    enum: ['Emlak', 'Vasıta', 'Elektronik', 'Ev Eşyası', 'İş Makineleri', 'Diğer']
+    enum: ['Yemek', 'Kozmetik', 'Giyim', 'Teknoloji', 'Elektronik Sigara & Puff', 'Diğer']
   },
   resimler: [{
-    type: String,
-    required: [true, 'En az bir resim gereklidir']
+    type: String
   }],
   konum: {
     type: String,
     required: [true, 'Konum alanı zorunludur']
+  },
+  iletisim: {
+    type: String,
+    required: [true, 'İletişim alanı zorunludur']
+  },
+  kullaniciAdi: {
+    type: String,
+    required: [true, 'Kullanıcı adı zorunludur']
+  },
+  satildi: {
+    type: Boolean,
+    default: false
   },
   durum: {
     type: String,
@@ -37,9 +48,9 @@ const ilanSchema = new mongoose.Schema({
   sahibi: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false
   },
-  createdAt: {
+  tarih: {
     type: Date,
     default: Date.now
   },

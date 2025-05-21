@@ -1,13 +1,21 @@
-const express = require('express')
-const mongoose = require('mongoose')
-const cors = require('cors')
+require('dotenv').config(); // .env dosyasını oku
 
-const app = express()
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const Ilan = require('./models/Ilan'); // İlan modelini import et
 
-// Middleware
-app.use(cors())
-app.use(express.json({ limit: '50mb' }))
-app.use(express.urlencoded({ extended: true, limit: '50mb' }))
+const app = express();
+
+// 🔒 CORS Ayarı (hem localhost hem de Vercel domain'ine izin veriyoruz)
+app.use(cors({
+  origin: ["http://localhost:5173", "https://pazar-lio-7ec8.vercel.app"],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
+
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // MongoDB bağlantısı
 mongoose.connect(process.env.MONGO_URL, {
@@ -15,24 +23,7 @@ mongoose.connect(process.env.MONGO_URL, {
   useUnifiedTopology: true
 })
 .then(() => console.log('MongoDB bağlantısı başarılı'))
-.catch(err => console.error('MongoDB bağlantı hatası:', err))
-
-// İlan şeması
-const ilanSchema = new mongoose.Schema({
-  baslik: String,
-  aciklama: String,
-  fiyat: Number,
-  konum: String,
-  iletisim: String,
-  resimler: [String],
-  kategori: String,
-  kullaniciAdi: String,
-  satildi: Boolean,
-  tarih: Date
-})
-
-// İlan modeli
-const Ilan = mongoose.models.Ilan || mongoose.model('Ilan', ilanSchema)
+.catch(err => console.error('MongoDB bağlantı hatası:', err));
 
 // Test endpoint'i
 app.get('/test', (req, res) => {
@@ -80,10 +71,34 @@ app.post('/api/ilanlar', async (req, res) => {
       ilan: kaydedilenIlan
     })
   } catch (error) {
-    console.error('İlan ekleme hatası:', error)
+    console.error('İlan ekleme hatası - Detaylı:', {
+      message: error.message,
+      stack: error.stack,
+      body: req.body
+    })
+    
+    // Mongoose validation hatası kontrolü
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Geçersiz veri formatı',
+        errors: Object.values(error.errors).map(err => err.message)
+      })
+    }
+
+    // MongoDB bağlantı hatası kontrolü
+    if (error.name === 'MongoServerError') {
+      return res.status(500).json({
+        success: false,
+        message: 'Veritabanı bağlantı hatası',
+        error: error.message
+      })
+    }
+
     res.status(500).json({
       success: false,
-      message: 'İlan eklenirken bir hata oluştu: ' + error.message
+      message: 'İlan eklenirken bir hata oluştu',
+      error: error.message
     })
   }
 })
@@ -179,19 +194,78 @@ app.get('/api/ilanlar/:id', async (req, res) => {
 // İlan güncelleme
 app.put('/api/ilanlar/:id', async (req, res) => {
   try {
+    console.log('Güncelleme isteği:', {
+      id: req.params.id,
+      body: req.body
+    });
+
+    // Veri doğrulama
+    const { baslik, aciklama, fiyat, konum, kategori, resimler, iletisim, satildi } = req.body;
+
+    if (!baslik || !aciklama || !fiyat || !konum || !kategori || !iletisim) {
+      return res.status(400).json({
+        success: false,
+        message: 'Lütfen tüm gerekli alanları doldurun'
+      });
+    }
+
+    // İlanı bul ve güncelle
     const ilan = await Ilan.findByIdAndUpdate(
       req.params.id,
-      req.body,
-      { new: true }
-    )
+      {
+        baslik,
+        aciklama,
+        fiyat: Number(fiyat),
+        konum,
+        kategori,
+        iletisim,
+        resimler: resimler || [],
+        satildi: satildi || false,
+        updatedAt: new Date()
+      },
+      { 
+        new: true,
+        runValidators: true // Validation'ları çalıştır
+      }
+    );
+
     if (!ilan) {
-      return res.status(404).json({ error: 'İlan bulunamadı' })
+      return res.status(404).json({
+        success: false,
+        message: 'İlan bulunamadı'
+      });
     }
-    res.json(ilan)
-  } catch (err) {
-    res.status(400).json({ error: err.message })
+
+    console.log('Güncellenen ilan:', ilan);
+
+    res.json({
+      success: true,
+      message: 'İlan başarıyla güncellendi',
+      ilan
+    });
+  } catch (error) {
+    console.error('İlan güncelleme hatası - Detaylı:', {
+      message: error.message,
+      stack: error.stack,
+      body: req.body
+    });
+
+    // Mongoose validation hatası kontrolü
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Geçersiz veri formatı',
+        errors: Object.values(error.errors).map(err => err.message)
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'İlan güncellenirken bir hata oluştu',
+      error: error.message
+    });
   }
-})
+});
 
 // İlan silme
 app.delete('/api/ilanlar/:id', async (req, res) => {
